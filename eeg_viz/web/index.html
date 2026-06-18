@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EEG Vistool — Web</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #111; color: #eee; }
+  header { padding: 12px 16px; background: #1c1c1c; border-bottom: 1px solid #333; }
+  h1 { font-size: 18px; margin: 0 0 10px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+  .controls label { font-size: 13px; margin-right: 4px; }
+  select { background: #222; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; }
+  .lobes { display: flex; gap: 10px; flex-wrap: wrap; }
+  .lobes label { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+  .panels { display: flex; gap: 16px; padding: 16px; flex-wrap: wrap; }
+  .panel { flex: 1 1 360px; min-width: 320px; }
+  .panel .picker { margin-bottom: 8px; font-size: 14px; }
+  svg { width: 100%; height: auto; background: #000; border: 1px solid #333; border-radius: 8px; }
+  .err { color: #ff6b6b; padding: 8px 16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>EEG Visualization — two-patient comparison</h1>
+  <div class="controls">
+    <div><label>Metric</label><select id="metric"></select></div>
+    <div><label>Band</label><select id="band"></select></div>
+    <div class="lobes" id="lobes"></div>
+  </div>
+</header>
+
+<div class="err" id="err"></div>
+
+<div class="panels">
+  <div class="panel">
+    <div class="picker"><label>Patient A</label> <select id="subjectA"></select></div>
+    <div id="svgA"></div>
+  </div>
+  <div class="panel">
+    <div class="picker"><label>Patient B</label> <select id="subjectB"></select></div>
+    <div id="svgB"></div>
+  </div>
+</div>
+
+<script>
+const SVGNS = "http://www.w3.org/2000/svg";
+let LAYOUT = null;
+let OPTIONS = null;
+let POS = {};            // electrode name -> {x, y, lobe, color}
+const hiddenLobes = new Set();
+
+function el(name, attrs) {
+  const node = document.createElementNS(SVGNS, name);
+  for (const k in attrs) node.setAttribute(k, attrs[k]);
+  return node;
+}
+
+function fillSelect(sel, items, value) {
+  sel.innerHTML = "";
+  for (const it of items) {
+    const o = document.createElement("option");
+    o.value = it; o.textContent = it;
+    sel.appendChild(o);
+  }
+  if (value != null) sel.value = value;
+}
+
+// Build the static parts of the head (outline, nose, ears, electrodes).
+function buildHead(svg) {
+  const r = LAYOUT.radius;
+  const stroke = "#ffffff";
+
+  svg.appendChild(el("circle", {cx: 0, cy: 0, r: r, fill: "none", stroke, "stroke-width": 2}));
+
+  // Nose: triangle at the top (scene y points down, so top is -r).
+  const half = LAYOUT.nose.width / 2;
+  const baseY = -Math.sqrt(Math.max(r*r - half*half, 0));
+  const apexY = -(r + LAYOUT.nose.height);
+  svg.appendChild(el("polyline", {
+    points: `${-half},${baseY} 0,${apexY} ${half},${baseY}`,
+    fill: "none", stroke, "stroke-width": 2
+  }));
+
+  // Ears: outer half-circle on each side.
+  svg.appendChild(el("path", {d: earPath(r, 0, LAYOUT.ear_radius, -90, 90), fill: "none", stroke, "stroke-width": 2}));
+  svg.appendChild(el("path", {d: earPath(-r, 0, LAYOUT.ear_radius, 90, 270), fill: "none", stroke, "stroke-width": 2}));
+
+  // Electrodes + labels.
+  const rad = LAYOUT.electrode_diameter / 2;
+  for (const e of LAYOUT.electrodes) {
+    const dim = hiddenLobes.has(e.lobe);
+    svg.appendChild(el("circle", {
+      cx: e.x, cy: e.y, r: rad,
+      fill: dim ? "#555" : e.color, stroke: "#fff", "stroke-width": 1.2
+    }));
+    const t = el("text", {x: e.x, y: e.y + rad + 12, fill: "#fff",
+      "font-size": 12, "text-anchor": "middle"});
+    t.textContent = e.name;
+    svg.appendChild(t);
+  }
+}
+
+function earPath(cx, cy, er, startDeg, endDeg, steps = 24) {
+  let d = "";
+  for (let i = 0; i <= steps; i++) {
+    const a = (startDeg + (endDeg - startDeg) * i / steps) * Math.PI / 180;
+    const x = cx + er * Math.cos(a);
+    const y = cy + er * Math.sin(a);
+    d += (i === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1) + " ";
+  }
+  return d.trim();
+}
+
+function drawConnections(svg, connections) {
+  const curv = LAYOUT.connection_curvature;
+  for (const c of connections) {
+    const p1 = POS[c.source], p2 = POS[c.target];
+    if (!p1 || !p2) continue;
+    if (hiddenLobes.has(p1.lobe) || hiddenLobes.has(p2.lobe)) continue;
+
+    const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const ctrlX = mx - dy * curv, ctrlY = my + dx * curv;
+
+    svg.appendChild(el("path", {
+      d: `M ${p1.x} ${p1.y} Q ${ctrlX} ${ctrlY} ${p2.x} ${p2.y}`,
+      fill: "none", stroke: c.color, "stroke-width": 1.5, "stroke-linecap": "round"
+    }));
+  }
+}
+
+function renderPanel(containerId, connectivity) {
+  const r = LAYOUT.radius;
+  const top = -(r + LAYOUT.nose.height) - 20;
+  const ext = r + LAYOUT.ear_radius + 20;
+  const vb = `${-ext} ${top} ${2*ext} ${(r + 30) - top}`;
+
+  const svg = el("svg", {viewBox: vb, preserveAspectRatio: "xMidYMid meet"});
+  drawConnections(svg, connectivity.connections);  // under electrodes
+  buildHead(svg);
+
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  container.appendChild(svg);
+}
+
+async function refresh() {
+  const metric = document.getElementById("metric").value;
+  const band = document.getElementById("band").value;
+  const a = document.getElementById("subjectA").value;
+  const b = document.getElementById("subjectB").value;
+
+  const url = `/api/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`
+            + `&metric=${encodeURIComponent(metric)}&band=${encodeURIComponent(band)}`;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderPanel("svgA", data.left);
+    renderPanel("svgB", data.right);
+    document.getElementById("err").textContent = "";
+  } catch (e) {
+    document.getElementById("err").textContent = "Error: " + e.message;
+  }
+}
+
+function buildLobeToggles() {
+  const wrap = document.getElementById("lobes");
+  wrap.innerHTML = "";
+  for (const [name, cfg] of Object.entries(LAYOUT.lobes)) {
+    const label = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = cfg.visible !== false;
+    if (!cb.checked) hiddenLobes.add(name);
+    cb.addEventListener("change", () => {
+      if (cb.checked) hiddenLobes.delete(name); else hiddenLobes.add(name);
+      refresh();
+    });
+    const sw = document.createElement("span");
+    sw.textContent = name[0].toUpperCase() + name.slice(1);
+    sw.style.color = cfg.color;
+    label.appendChild(cb); label.appendChild(sw);
+    wrap.appendChild(label);
+  }
+}
+
+async function init() {
+  try {
+    OPTIONS = await (await fetch("/api/options")).json();
+    LAYOUT = await (await fetch("/api/layout")).json();
+  } catch (e) {
+    document.getElementById("err").textContent = "Cannot reach backend: " + e.message;
+    return;
+  }
+
+  for (const e of LAYOUT.electrodes) POS[e.name] = e;
+
+  const subs = OPTIONS.subjects;
+  fillSelect(document.getElementById("metric"), OPTIONS.metrics, OPTIONS.defaults.metric);
+  fillSelect(document.getElementById("band"), OPTIONS.bands, OPTIONS.defaults.band);
+  fillSelect(document.getElementById("subjectA"), subs, subs[0]);
+  fillSelect(document.getElementById("subjectB"), subs, subs[1] || subs[0]);
+
+  buildLobeToggles();
+
+  for (const id of ["metric", "band", "subjectA", "subjectB"]) {
+    document.getElementById(id).addEventListener("change", refresh);
+  }
+
+  refresh();
+}
+
+init();
+</script>
+</body>
+</html>

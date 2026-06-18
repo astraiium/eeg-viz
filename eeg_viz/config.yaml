@@ -1,0 +1,155 @@
+# ============================================================
+# EEG Visualization Tool — runtime configuration
+#
+# Every adjustable parameter lives here. main.py loads this file
+# and passes the relevant sections to each module. Edit values
+# below instead of touching the Python source.
+# ============================================================
+
+paths:
+  # Base directory that the file paths below are resolved against.
+  # Relative paths are taken relative to this folder; "data" means the
+  # ./data subfolder of the project (where config.yaml lives). May be absolute.
+  data_dir: "data"
+
+  # Directory holding raw EEG recordings (e.g. .edf / .bdf / .set).
+  # Reserved for raw-signal loading; not required for the current
+  # coherence / DAI connectivity view.
+  raw_eeg_dir: "raw"
+
+  # Connectivity workbooks used by the visualization. Each is an
+  # Excel file with one sheet per frequency band (alpha, beta, ...).
+  coherence_file: "coherence.xlsx"
+  dai_file: "dai.xlsx"
+
+data:
+  # Columns present in every sheet that are metadata, not electrode
+  # pairs. These are skipped when building the connection list.
+  meta_columns: ["subject", "group"]
+
+  # Character separating the two electrode names in a pair-column
+  # header, e.g. "F3-F4".
+  pair_separator: "-"
+
+window:
+  title: "EEG Vistool"
+  width: 1000
+  height: 800
+
+# Dropdown choices. "default" is the item selected on startup.
+metrics:
+  options: ["Coherence", "DAI"]
+  default: "Coherence"
+
+bands:
+  options: ["Alpha", "Beta", "Delta", "Theta", "Gamma"]
+  default: "Alpha"
+
+# Lobe groups. Order here sets the checkbox order in the toolbar.
+# For each lobe: toggle color, member electrodes, and whether it
+# starts visible.
+lobes:
+  frontal:
+    color: "#FBFF00"
+    electrodes: ["FP1", "FP2", "F3", "F4", "F7", "F8", "FZ"]
+    visible: true
+  central:
+    color: "#FF6EE0"
+    electrodes: ["C3", "C4", "CZ"]
+    visible: true
+  temporal:
+    color: "#4AC6FF"
+    electrodes: ["T3", "T4", "T5", "T6"]
+    visible: true
+  parietal:
+    color: "#B16DFF"
+    electrodes: ["P3", "P4", "PZ"]
+    visible: true
+  occipital:
+    color: "#86FF61"
+    electrodes: ["O1", "O2"]
+    visible: true
+
+# 2-D position of each electrode on the head map, in scene
+# coordinates with the origin at the head center: [x, y].
+electrode_positions:
+  FP1: [-80, -230]
+  FP2: [80, -230]
+  F3:  [-100, -115]
+  F4:  [100, -115]
+  FZ:  [0, -115]
+  F7:  [-200, -130]
+  F8:  [200, -130]
+  C3:  [-120, 0]
+  C4:  [120, 0]
+  CZ:  [0, 0]
+  P3:  [-100, 115]
+  P4:  [100, 115]
+  PZ:  [0, 115]
+  T3:  [-220, 0]
+  T4:  [220, 0]
+  T5:  [-200, 130]
+  T6:  [200, 130]
+  O1:  [-80, 230]
+  O2:  [80, 230]
+
+# Visual styling of the head map.
+appearance:
+  background: "#000000"
+
+  electrode:
+    diameter: 25
+    label_color: "#FFFFFF"
+    outline_color: "#FFFFFF"
+    outline_width: 1.2
+    inactive_color: "#D3D3D3"   # color when an electrode is toggled off
+
+  head:
+    radius: 300
+    outline_color: "#FFFFFF"
+    outline_width: 2.0
+    nose_width: 60       # base width of the nose triangle (along the rim)
+    nose_height: 45      # how far the nose juts out past the rim
+    ear_radius: 28       # radius of the ear half-circles on each side
+
+  connection:
+    width: 1.5
+    curvature: 0.25             # perpendicular bow of the connection arcs
+
+# ============================================================
+# Frontal-Central coherence line plot (the "Coherence Plot" tab).
+# Compares a pre subject, a post subject, and a control subject
+# across a set of channel pairs, split into left / right groups.
+# ============================================================
+coherence_plot:
+  title: "Frontal-Central Coherence Plots (Left/Right)"
+
+  defaults:
+    pre_subject: "AA"
+    post_subject: "AA-post"
+    control_subject: "CONTROL_AVG"
+    band: "Delta"
+
+  # One subplot per group, drawn left-to-right.
+  groups:
+    - name: "Left Frontal-Central"
+      pairs: ["C3-F3", "C3-F7", "C3-FP1", "C3-FZ",
+              "CZ-F3", "CZ-F7", "CZ-FP1", "CZ-FZ"]
+    - name: "Right Frontal-Central"
+      pairs: ["C4-F4", "C4-F8", "C4-FP2", "C4-FZ",
+              "CZ-F4", "CZ-F8", "CZ-FP2", "CZ-FZ"]
+    - name: "Left Temporal-Central"
+      pairs: ["C3-T3", "C3-T5", "CZ-T3", "CZ-T5"]
+    - name: "Right Temporal-Central"
+      pairs: ["C4-T4", "C4-T6", "CZ-T4", "CZ-T6"]
+  # Series styling. "control" uses the control_subject above.
+  series:
+    pre:
+      label: "Pre-ETS"
+      color: "#D62728"      # red
+    post:
+      label: "Post-ETS"
+      color: "#2CA02C"      # green
+    control:
+      label: "Non-ASD Control"
+      color: "#999999"      # gray
