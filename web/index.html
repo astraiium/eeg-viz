@@ -217,12 +217,18 @@ function buildHead(svg) {
 /* ---------------- Connections ---------------- */
 
 function drawConnections(svg, connections) {
+
+  if (!connections) return;
+
   const curv = LAYOUT.connection_curvature;
 
   for (const c of connections) {
+
     const p1 = POS[c.source];
     const p2 = POS[c.target];
+
     if (!p1 || !p2) continue;
+
     if (hiddenLobes.has(p1.lobe) || hiddenLobes.has(p2.lobe)) continue;
 
     const mx = (p1.x + p2.x) / 2;
@@ -256,6 +262,42 @@ function renderPanel(id, data) {
   const container = document.getElementById(id);
   container.innerHTML = "";
   container.appendChild(svg);
+}
+
+function renderLobes() {
+  const container = document.getElementById("lobes");
+
+  if (!container) {
+    console.error("No lobes container");
+    return;
+  }
+
+  container.innerHTML = "";
+
+  // ✅ derive lobes from actual electrode layout
+  const lobes = [...new Set(LAYOUT.electrodes.map(e => e.lobe))];
+
+  console.log("lobes derived from layout:", lobes);
+
+  for (const lobe of lobes) {
+
+    const label = document.createElement("label");
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+
+    cb.onchange = () => {
+      if (cb.checked) hiddenLobes.delete(lobe);
+      else hiddenLobes.add(lobe);
+      refresh();
+    };
+
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(" " + lobe));
+
+    container.appendChild(label);
+  }
 }
 
 /* ---------------- API ---------------- */
@@ -373,9 +415,16 @@ async function init() {
   try {
     OPTIONS = await (await fetch("/api/options")).json();
     LAYOUT = await (await fetch("/api/layout")).json();
+    console.log("OPTIONS:", OPTIONS);
+    console.log("OPTIONS.lobes:", OPTIONS.lobes);
+    renderLobes();
 
-    OPTIONS.subjects.forEach(s => {
-      POS[s] = s;
+    LAYOUT.electrodes.forEach(e => {
+      POS[e.name] = {
+        x: e.x,
+        y: e.y,
+        lobe: e.lobe
+      };
     });
 
     fillSelect(metricEl, OPTIONS.metrics, OPTIONS.defaults.metric);
@@ -429,7 +478,7 @@ document.getElementById("view-coherence").addEventListener("click", () => {
 });
 
 showView("head");
-init();
+window.addEventListener("DOMContentLoaded", init);
 </script>
 
 </body>
