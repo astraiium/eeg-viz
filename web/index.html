@@ -4,51 +4,123 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>EEG Vistool — Web</title>
+
 <style>
   body { font-family: system-ui, sans-serif; margin: 0; background: #111; color: #eee; }
   header { padding: 12px 16px; background: #1c1c1c; border-bottom: 1px solid #333; }
   h1 { font-size: 18px; margin: 0 0 10px; }
+
   .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
   .controls label { font-size: 13px; margin-right: 4px; }
-  select { background: #222; color: #eee; border: 1px solid #444; border-radius: 4px; padding: 4px 6px; }
+
+  select {
+    background: #222; color: #eee;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 4px 6px;
+  }
+
   .lobes { display: flex; gap: 10px; flex-wrap: wrap; }
   .lobes label { display: flex; align-items: center; gap: 4px; font-size: 13px; }
+
   .panels { display: flex; gap: 16px; padding: 16px; flex-wrap: wrap; }
   .panel { flex: 1 1 360px; min-width: 320px; }
   .panel .picker { margin-bottom: 8px; font-size: 14px; }
-  svg { width: 100%; height: auto; background: #000; border: 1px solid #333; border-radius: 8px; }
+
+  svg {
+    width: 100%;
+    height: auto;
+    background: #000;
+    border: 1px solid #333;
+    border-radius: 8px;
+  }
+
   .err { color: #ff6b6b; padding: 8px 16px; }
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
+
 <header>
   <h1>EEG Visualization — two-patient comparison</h1>
+
   <div class="controls">
     <div><label>Metric</label><select id="metric"></select></div>
     <div><label>Band</label><select id="band"></select></div>
     <div class="lobes" id="lobes"></div>
   </div>
+
+  <div style="padding: 10px 16px; display:flex; gap:10px;">
+    <button id="view-head">Head Models</button>
+    <button id="view-coherence">Coherence Plots</button>
+  </div>
 </header>
 
 <div class="err" id="err"></div>
 
-<div class="panels">
-  <div class="panel">
-    <div class="picker"><label>Patient A</label> <select id="subjectA"></select></div>
-    <div id="svgA"></div>
+<div id="head-view">
+  <div class="panels">
+    <div class="panel">
+      <div class="picker"><label>Patient A</label> <select id="subjectA"></select></div>
+      <div id="svgA"></div>
+    </div>
+
+    <div class="panel">
+      <div class="picker"><label>Patient B</label> <select id="subjectB"></select></div>
+      <div id="svgB"></div>
+    </div>
   </div>
-  <div class="panel">
-    <div class="picker"><label>Patient B</label> <select id="subjectB"></select></div>
-    <div id="svgB"></div>
+</div>
+
+<!-- COHERENCE TAB -->
+<div id="coherence-view" style="display:none; padding:16px;">
+  <div id="coherence-tab" style="padding:16px;">
+    <h2>Coherence Plot</h2>
+
+    <div class="controls">
+      <div>
+        <label>Pre Subject</label>
+        <select id="pre-subject"></select>
+      </div>
+
+      <div>
+        <label>Post Subject</label>
+        <select id="post-subject"></select>
+      </div>
+
+      <div>
+        <label>Control</label>
+        <select id="control-subject"></select>
+      </div>
+
+      <div>
+        <label>Band</label>
+        <select id="coherence-band"></select>
+      </div>
+    </div>
+
+    <div id="coherence-plots"
+        style="display:grid;
+                grid-template-columns:repeat(auto-fit,minmax(500px,1fr));
+                gap:20px;
+                margin-top:20px;">
+    </div>
   </div>
 </div>
 
 <script>
 const SVGNS = "http://www.w3.org/2000/svg";
+
 let LAYOUT = null;
 let OPTIONS = null;
-let POS = {};            // electrode name -> {x, y, lobe, color}
+let POS = {};
 const hiddenLobes = new Set();
+
+let coherenceCharts = [];
+
+/* ---------------- SVG helpers ---------------- */
 
 function el(name, attrs) {
   const node = document.createElementNS(SVGNS, name);
@@ -60,45 +132,11 @@ function fillSelect(sel, items, value) {
   sel.innerHTML = "";
   for (const it of items) {
     const o = document.createElement("option");
-    o.value = it; o.textContent = it;
+    o.value = it;
+    o.textContent = it;
     sel.appendChild(o);
   }
   if (value != null) sel.value = value;
-}
-
-// Build the static parts of the head (outline, nose, ears, electrodes).
-function buildHead(svg) {
-  const r = LAYOUT.radius;
-  const stroke = "#ffffff";
-
-  svg.appendChild(el("circle", {cx: 0, cy: 0, r: r, fill: "none", stroke, "stroke-width": 2}));
-
-  // Nose: triangle at the top (scene y points down, so top is -r).
-  const half = LAYOUT.nose.width / 2;
-  const baseY = -Math.sqrt(Math.max(r*r - half*half, 0));
-  const apexY = -(r + LAYOUT.nose.height);
-  svg.appendChild(el("polyline", {
-    points: `${-half},${baseY} 0,${apexY} ${half},${baseY}`,
-    fill: "none", stroke, "stroke-width": 2
-  }));
-
-  // Ears: outer half-circle on each side.
-  svg.appendChild(el("path", {d: earPath(r, 0, LAYOUT.ear_radius, -90, 90), fill: "none", stroke, "stroke-width": 2}));
-  svg.appendChild(el("path", {d: earPath(-r, 0, LAYOUT.ear_radius, 90, 270), fill: "none", stroke, "stroke-width": 2}));
-
-  // Electrodes + labels.
-  const rad = LAYOUT.electrode_diameter / 2;
-  for (const e of LAYOUT.electrodes) {
-    const dim = hiddenLobes.has(e.lobe);
-    svg.appendChild(el("circle", {
-      cx: e.x, cy: e.y, r: rad,
-      fill: dim ? "#555" : e.color, stroke: "#fff", "stroke-width": 1.2
-    }));
-    const t = el("text", {x: e.x, y: e.y + rad + 12, fill: "#fff",
-      "font-size": 12, "text-anchor": "middle"});
-    t.textContent = e.name;
-    svg.appendChild(t);
-  }
 }
 
 function earPath(cx, cy, er, startDeg, endDeg, steps = 24) {
@@ -112,107 +150,287 @@ function earPath(cx, cy, er, startDeg, endDeg, steps = 24) {
   return d.trim();
 }
 
+/* ---------------- Head rendering ---------------- */
+
+function buildHead(svg) {
+  const r = LAYOUT.radius;
+
+  svg.appendChild(el("circle", {
+    cx: 0, cy: 0, r,
+    fill: "none",
+    stroke: "#fff",
+    "stroke-width": 2
+  }));
+
+  const half = LAYOUT.nose.width / 2;
+  const baseY = -Math.sqrt(Math.max(r*r - half*half, 0));
+  const apexY = -(r + LAYOUT.nose.height);
+
+  svg.appendChild(el("polyline", {
+    points: `${-half},${baseY} 0,${apexY} ${half},${baseY}`,
+    fill: "none",
+    stroke: "#fff",
+    "stroke-width": 2
+  }));
+
+  svg.appendChild(el("path", {
+    d: earPath(r, 0, LAYOUT.ear_radius, -90, 90),
+    fill: "none",
+    stroke: "#fff",
+    "stroke-width": 2
+  }));
+
+  svg.appendChild(el("path", {
+    d: earPath(-r, 0, LAYOUT.ear_radius, 90, 270),
+    fill: "none",
+    stroke: "#fff",
+    "stroke-width": 2
+  }));
+
+  const rad = LAYOUT.electrode_diameter / 2;
+
+  for (const e of LAYOUT.electrodes) {
+    const dim = hiddenLobes.has(e.lobe);
+
+    svg.appendChild(el("circle", {
+      cx: e.x,
+      cy: e.y,
+      r: rad,
+      fill: dim ? "#444" : e.color,
+      stroke: "#fff",
+      "stroke-width": 1
+    }));
+
+    const t = el("text", {
+      x: e.x,
+      y: e.y + rad + 12,
+      fill: "#fff",
+      "font-size": 12,
+      "text-anchor": "middle"
+    });
+
+    t.textContent = e.name;
+    svg.appendChild(t);
+  }
+}
+
+/* ---------------- Connections ---------------- */
+
 function drawConnections(svg, connections) {
   const curv = LAYOUT.connection_curvature;
+
   for (const c of connections) {
-    const p1 = POS[c.source], p2 = POS[c.target];
+    const p1 = POS[c.source];
+    const p2 = POS[c.target];
     if (!p1 || !p2) continue;
     if (hiddenLobes.has(p1.lobe) || hiddenLobes.has(p2.lobe)) continue;
 
-    const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
-    const dx = p2.x - p1.x, dy = p2.y - p1.y;
-    const ctrlX = mx - dy * curv, ctrlY = my + dx * curv;
+    const mx = (p1.x + p2.x) / 2;
+    const my = (p1.y + p2.y) / 2;
+
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+
+    const ctrlX = mx - dy * curv;
+    const ctrlY = my + dx * curv;
 
     svg.appendChild(el("path", {
       d: `M ${p1.x} ${p1.y} Q ${ctrlX} ${ctrlY} ${p2.x} ${p2.y}`,
-      fill: "none", stroke: c.color, "stroke-width": 1.5, "stroke-linecap": "round"
+      fill: "none",
+      stroke: c.color || "#0f0",
+      "stroke-width": 1.5,
+      "stroke-linecap": "round"
     }));
   }
 }
 
-function renderPanel(containerId, connectivity) {
+function renderPanel(id, data) {
   const r = LAYOUT.radius;
-  const top = -(r + LAYOUT.nose.height) - 20;
-  const ext = r + LAYOUT.ear_radius + 20;
-  const vb = `${-ext} ${top} ${2*ext} ${(r + 30) - top}`;
+  const vb = `-${r+100} -${r+100} ${2*(r+100)} ${2*(r+100)}`;
 
-  const svg = el("svg", {viewBox: vb, preserveAspectRatio: "xMidYMid meet"});
-  drawConnections(svg, connectivity.connections);  // under electrodes
+  const svg = el("svg", { viewBox: vb });
+
+  drawConnections(svg, data.connections || []);
   buildHead(svg);
 
-  const container = document.getElementById(containerId);
+  const container = document.getElementById(id);
   container.innerHTML = "";
   container.appendChild(svg);
 }
 
-async function refresh() {
-  const metric = document.getElementById("metric").value;
-  const band = document.getElementById("band").value;
-  const a = document.getElementById("subjectA").value;
-  const b = document.getElementById("subjectB").value;
+/* ---------------- API ---------------- */
 
-  const url = `/api/compare?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`
-            + `&metric=${encodeURIComponent(metric)}&band=${encodeURIComponent(band)}`;
+async function refresh() {
   try {
-    const res = await fetch(url);
+    const metric = metricEl.value;
+    const band = bandEl.value;
+    const a = subjectA.value;
+    const b = subjectB.value;
+
+    const res = await fetch(
+      `/api/compare?a=${a}&b=${b}&metric=${metric}&band=${band}`
+    );
+
     const data = await res.json();
     if (data.error) throw new Error(data.error);
+
     renderPanel("svgA", data.left);
     renderPanel("svgB", data.right);
-    document.getElementById("err").textContent = "";
+
+    err.textContent = "";
+
   } catch (e) {
-    document.getElementById("err").textContent = "Error: " + e.message;
+    err.textContent = "Error: " + e.message;
   }
 }
 
-function buildLobeToggles() {
-  const wrap = document.getElementById("lobes");
-  wrap.innerHTML = "";
-  for (const [name, cfg] of Object.entries(LAYOUT.lobes)) {
-    const label = document.createElement("label");
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = cfg.visible !== false;
-    if (!cb.checked) hiddenLobes.add(name);
-    cb.addEventListener("change", () => {
-      if (cb.checked) hiddenLobes.delete(name); else hiddenLobes.add(name);
-      refresh();
-    });
-    const sw = document.createElement("span");
-    sw.textContent = name[0].toUpperCase() + name.slice(1);
-    sw.style.color = cfg.color;
-    label.appendChild(cb); label.appendChild(sw);
-    wrap.appendChild(label);
+/* ---------------- Coherence tab ---------------- */
+
+async function loadCoherencePlots() {
+  try {
+    const pre = document.getElementById("pre-subject").value;
+    const post = document.getElementById("post-subject").value;
+    const control = document.getElementById("control-subject").value;
+    const band = document.getElementById("coherence-band").value;
+
+    const res = await fetch(
+      `/api/coherence_line?pre=${pre}&post=${post}&control=${control}&band=${band}`
+    );
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    drawCoherencePlots(data);
+
+  } catch (e) {
+    err.textContent = "Coherence error: " + e.message;
   }
 }
+
+function drawCoherencePlots(data) {
+  coherenceCharts.forEach(c => c.destroy());
+  coherenceCharts = [];
+
+  const container = document.getElementById("coherence-plots");
+  container.innerHTML = "";
+
+  for (const group of data.groups) {
+
+    const wrapper = document.createElement("div");
+    const title = document.createElement("h3");
+    const canvas = document.createElement("canvas");
+
+    title.textContent = group.name;
+
+    wrapper.appendChild(title);
+    wrapper.appendChild(canvas);
+    container.appendChild(wrapper);
+
+    const chart = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: {
+        labels: group.pairs,
+        datasets: [
+          {
+            label: document.getElementById("control-subject").value,
+            data: group.control.map(v => v ?? null),
+            borderColor: "#999"
+          },
+          {
+            label: document.getElementById("pre-subject").value,
+            data: group.pre.map(v => v ?? null),
+            borderColor: "#f33"
+          },
+          {
+            label: document.getElementById("post-subject").value,
+            data: group.post.map(v => v ?? null),
+            borderColor: "#3f3"
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    coherenceCharts.push(chart);
+  }
+}
+
+/* ---------------- Init ---------------- */
+
+const err = document.getElementById("err");
+
+const metricEl = document.getElementById("metric");
+const bandEl = document.getElementById("band");
+const subjectA = document.getElementById("subjectA");
+const subjectB = document.getElementById("subjectB");
 
 async function init() {
   try {
     OPTIONS = await (await fetch("/api/options")).json();
     LAYOUT = await (await fetch("/api/layout")).json();
+
+    OPTIONS.subjects.forEach(s => {
+      POS[s] = s;
+    });
+
+    fillSelect(metricEl, OPTIONS.metrics, OPTIONS.defaults.metric);
+    fillSelect(bandEl, OPTIONS.bands, OPTIONS.defaults.band);
+    fillSelect(subjectA, OPTIONS.subjects);
+    fillSelect(subjectB, OPTIONS.subjects);
+
+    fillSelect(document.getElementById("pre-subject"), OPTIONS.subjects);
+    fillSelect(document.getElementById("post-subject"), OPTIONS.subjects);
+    fillSelect(document.getElementById("control-subject"), OPTIONS.subjects);
+    fillSelect(document.getElementById("coherence-band"), OPTIONS.bands);
+
+    metricEl.onchange = refresh;
+    bandEl.onchange = refresh;
+    subjectA.onchange = refresh;
+    subjectB.onchange = refresh;
+
+    document.getElementById("pre-subject").onchange = loadCoherencePlots;
+    document.getElementById("post-subject").onchange = loadCoherencePlots;
+    document.getElementById("control-subject").onchange = loadCoherencePlots;
+    document.getElementById("coherence-band").onchange = loadCoherencePlots;
+
+    refresh();
+    loadCoherencePlots();
+
   } catch (e) {
-    document.getElementById("err").textContent = "Cannot reach backend: " + e.message;
-    return;
+    err.textContent = "Init error: " + e.message;
   }
-
-  for (const e of LAYOUT.electrodes) POS[e.name] = e;
-
-  const subs = OPTIONS.subjects;
-  fillSelect(document.getElementById("metric"), OPTIONS.metrics, OPTIONS.defaults.metric);
-  fillSelect(document.getElementById("band"), OPTIONS.bands, OPTIONS.defaults.band);
-  fillSelect(document.getElementById("subjectA"), subs, subs[0]);
-  fillSelect(document.getElementById("subjectB"), subs, subs[1] || subs[0]);
-
-  buildLobeToggles();
-
-  for (const id of ["metric", "band", "subjectA", "subjectB"]) {
-    document.getElementById(id).addEventListener("change", refresh);
-  }
-
-  refresh();
 }
 
+function showView(mode) {
+  const head = document.getElementById("head-view");
+  const coh = document.getElementById("coherence-view");
+
+  if (mode === "head") {
+    head.style.display = "block";
+    coh.style.display = "none";
+  } else {
+    head.style.display = "none";
+    coh.style.display = "block";
+  }
+}
+
+// hook buttons
+document.getElementById("view-head").addEventListener("click", () => {
+  showView("head");
+});
+
+document.getElementById("view-coherence").addEventListener("click", () => {
+  showView("coherence");
+});
+
+showView("head");
 init();
 </script>
+
 </body>
 </html>
