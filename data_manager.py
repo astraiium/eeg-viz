@@ -24,7 +24,7 @@ class DataManager:
     def get_subjects(self):
 
         alpha_sheet = self.coherence_book["alpha"]
-
+        print(alpha_sheet["subject"].tolist())
         return alpha_sheet["subject"].tolist()
 
     def get_connections(self, subject, metric, band):
