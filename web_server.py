@@ -85,6 +85,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(BACKEND.compare(
                     arg("a"), arg("b"), arg("metric"), arg("band")
                 ))
+                
+            elif path == "/api/difference":
+                self._send_json(BACKEND.difference(
+                    arg("a"), arg("b"), arg("metric"), arg("band")
+                ))
 
             elif path == "/api/coherence_line":
                 self._send_json(BACKEND.coherence_line_plot(

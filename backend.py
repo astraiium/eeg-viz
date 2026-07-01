@@ -17,7 +17,7 @@ Typical usage from a web handler:
 """
 
 from data_manager import DataManager
-from colors import value_to_hex
+from colors import value_to_hex, difference_to_hex
 
 
 class EEGBackend:
@@ -137,6 +137,38 @@ class EEGBackend:
             "band": band,
             "left": self.connectivity(subject_a, metric, band),
             "right": self.connectivity(subject_b, metric, band),
+        }
+        
+    def difference(self, subject_a, subject_b, metric, band):
+        raw_a = self.data.get_connections(subject_a, metric, band)
+        raw_b = self.data.get_connections(subject_b, metric, band)
+
+        pairs = set(raw_a.keys()) | set(raw_b.keys())
+
+        diffs = {
+            pair: raw_b.get(pair, 0) - raw_a.get(pair, 0)
+            for pair in pairs
+        }
+
+        max_diff = max(abs(v) for v in diffs.values()) if diffs else 1
+
+        connections = []
+
+        for (a, b), diff in diffs.items():
+            connections.append({
+                "source": a,
+                "target": b,
+                "value": diff,
+                "color": difference_to_hex(diff, max_diff)
+            })
+
+        return {
+            "mode": "difference",
+            "subject_a": subject_a,
+            "subject_b": subject_b,
+            "metric": metric,
+            "band": band,
+            "connections": connections
         }
 
     # ------------------------------------------------------------------
