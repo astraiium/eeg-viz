@@ -15,6 +15,11 @@ class DataManager:
             paths["coherence_file"],
             sheet_name=None
         )
+        
+        self.plv_book = pd.read_excel(
+            paths["plv_file"],
+            sheet_name=None
+        )
 
         self.dai_book = pd.read_excel(
             paths["dai_file"],
@@ -31,7 +36,9 @@ class DataManager:
 
         if metric == "Coherence":
             sheet = self.coherence_book[band.lower()]
-        else:
+        elif metric == "PLV":
+            sheet = self.plv_book[band.lower()]
+        elif metric == "DAI":
             sheet = self.dai_book[band.lower()]
 
         row = sheet[sheet["subject"] == subject]

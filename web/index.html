@@ -317,10 +317,18 @@ function renderLobes() {
     cb.type = "checkbox";
     cb.checked = true;
 
+    const lobeKey = lobe.toLowerCase();
+
     cb.onchange = () => {
-      if (cb.checked) hiddenLobes.delete(lobe);
-      else hiddenLobes.add(lobe);
-      refresh();
+        if (cb.checked)
+            hiddenLobes.delete(lobeKey);
+        else
+            hiddenLobes.add(lobeKey);
+
+        refresh();
+
+        if (document.getElementById("coherence-view").style.display !== "none")
+            loadCoherencePlots();
     };
 
     label.appendChild(cb);
@@ -406,6 +414,17 @@ function drawCoherencePlots(data) {
   container.innerHTML = "";
 
   for (const group of data.groups) {
+
+    const name = group.name.replace(/^Left |^Right /, "");
+    const [lobe1, lobe2] = name
+        .split("-")
+        .map(x => x.trim().toLowerCase());
+
+    if (hiddenLobes.has(lobe1) || hiddenLobes.has(lobe2))
+        continue;
+
+    if (hiddenLobes.has(lobe1) || hiddenLobes.has(lobe2))
+        continue;
 
     const wrapper = document.createElement("div");
     const title = document.createElement("h3");

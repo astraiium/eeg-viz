@@ -38,7 +38,7 @@ def load_config(path=None):
     data_dir = _resolve(PROJECT_DIR, paths.get("data_dir", "."))
     paths["data_dir"] = data_dir
 
-    for key in ("raw_eeg_dir", "coherence_file", "dai_file"):
+    for key in ("raw_eeg_dir", "coherence_file", "plv_file", "dai_file"):
         if key in paths and paths[key] is not None:
             paths[key] = _resolve(data_dir, paths[key])
 

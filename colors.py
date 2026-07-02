@@ -42,7 +42,7 @@ def value_to_rgb(value, metric):
     if value is None:
         return (200, 200, 200)
 
-    if metric == "Coherence":
+    if metric in ("Coherence", "PLV"):
         return _coherence_rgb(value)
     if metric == "Difference":
         return _difference_rgb(value)

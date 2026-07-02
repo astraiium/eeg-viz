@@ -21,6 +21,7 @@ paths:
   # Excel file with one sheet per frequency band (alpha, beta, ...).
   coherence_file: "coherence.xlsx"
   dai_file: "dai.xlsx"
+  plv_file: "plv.xlsx"
 
 data:
   # Columns present in every sheet that are metadata, not electrode
@@ -38,7 +39,7 @@ window:
 
 # Dropdown choices. "default" is the item selected on startup.
 metrics:
-  options: ["Coherence", "DAI"]
+  options: ["Coherence", "PLV", "DAI"]
   default: "Coherence"
 
 bands:
@@ -132,17 +133,82 @@ coherence_plot:
 
   # One subplot per group, drawn left-to-right.
   groups:
-    - name: "Left Frontal-Central"
-      pairs: ["C3-F3", "C3-F7", "C3-FP1", "C3-FZ",
-              "CZ-F3", "CZ-F7", "CZ-FP1", "CZ-FZ"]
-    - name: "Right Frontal-Central"
-      pairs: ["C4-F4", "C4-F8", "C4-FP2", "C4-FZ",
-              "CZ-F4", "CZ-F8", "CZ-FP2", "CZ-FZ"]
-    - name: "Left Temporal-Central"
-      pairs: ["C3-T3", "C3-T5", "CZ-T3", "CZ-T5"]
-    - name: "Right Temporal-Central"
-      pairs: ["C4-T4", "C4-T6", "CZ-T4", "CZ-T6"]
-  # Series styling. "control" uses the control_subject above.
+  # ---------- Frontal-Central ----------
+  - name: "Left Frontal-Central"
+    pairs: ["C3-F3", "C3-F7", "C3-FP1", "C3-FZ",
+            "CZ-F3", "CZ-F7", "CZ-FP1", "CZ-FZ"]
+
+  - name: "Right Frontal-Central"
+    pairs: ["C4-F4", "C4-F8", "C4-FP2", "C4-FZ",
+            "CZ-F4", "CZ-F8", "CZ-FP2", "CZ-FZ"]
+
+  # ---------- Frontal-Temporal ----------
+  - name: "Left Frontal-Temporal"
+    pairs: ["T3-F3", "T3-F7", "T3-FP1", "T3-FZ",
+            "T5-F3", "T5-F7", "T5-FP1", "T5-FZ"]
+
+  - name: "Right Frontal-Temporal"
+    pairs: ["T4-F4", "T4-F8", "T4-FP2", "T4-FZ",
+            "T6-F4", "T6-F8", "T6-FP2", "T6-FZ"]
+
+  # ---------- Frontal-Parietal ----------
+  - name: "Left Frontal-Parietal"
+    pairs: ["P3-F3", "P3-F7", "P3-FP1", "P3-FZ",
+            "PZ-F3", "PZ-F7", "PZ-FP1", "PZ-FZ"]
+
+  - name: "Right Frontal-Parietal"
+    pairs: ["P4-F4", "P4-F8", "P4-FP2", "P4-FZ",
+            "PZ-F4", "PZ-F8", "PZ-FP2", "PZ-FZ"]
+
+  # ---------- Frontal-Occipital ----------
+  - name: "Left Frontal-Occipital"
+    pairs: ["O1-F3", "O1-F7", "O1-FP1", "O1-FZ"]
+
+  - name: "Right Frontal-Occipital"
+    pairs: ["O2-F4", "O2-F8", "O2-FP2", "O2-FZ"]
+
+  # ---------- Temporal-Central ----------
+  - name: "Left Temporal-Central"
+    pairs: ["C3-T3", "C3-T5", "CZ-T3", "CZ-T5"]
+
+  - name: "Right Temporal-Central"
+    pairs: ["C4-T4", "C4-T6", "CZ-T4", "CZ-T6"]
+
+  # ---------- Central-Parietal ----------
+  - name: "Left Central-Parietal"
+    pairs: ["C3-P3", "CZ-P3", "C3-PZ", "CZ-PZ"]
+
+  - name: "Right Central-Parietal"
+    pairs: ["C4-P4", "CZ-P4", "C4-PZ", "CZ-PZ"]
+
+  # ---------- Central-Occipital ----------
+  - name: "Left Central-Occipital"
+    pairs: ["C3-O1", "CZ-O1"]
+
+  - name: "Right Central-Occipital"
+    pairs: ["C4-O2", "CZ-O2"]
+
+  # ---------- Temporal-Parietal ----------
+  - name: "Left Temporal-Parietal"
+    pairs: ["T3-P3", "T3-PZ", "T5-P3", "T5-PZ"]
+
+  - name: "Right Temporal-Parietal"
+    pairs: ["T4-P4", "T4-PZ", "T6-P4", "T6-PZ"]
+
+  # ---------- Temporal-Occipital ----------
+  - name: "Left Temporal-Occipital"
+    pairs: ["T3-O1", "T5-O1"]
+
+  - name: "Right Temporal-Occipital"
+    pairs: ["T4-O2", "T6-O2"]
+
+  # ---------- Parietal-Occipital ----------
+  - name: "Left Parietal-Occipital"
+    pairs: ["P3-O1", "PZ-O1"]
+
+  - name: "Right Parietal-Occipital"
+    pairs: ["P4-O2", "PZ-O2"]
+
   series:
     pre:
       label: "Pre-ETS"
