@@ -134,6 +134,28 @@
 <script>
 const SVGNS = "http://www.w3.org/2000/svg";
 
+const ELECTRODE_ORDER = {
+      FP1: 0,
+      FP2: 1,
+      F3: 2,
+      F4: 3,
+      F7: 4,
+      F8: 5,
+      FZ: 6,
+      C3: 7,
+      C4: 8,
+      CZ: 9,
+      P3: 10,
+      P4: 11,
+      PZ: 12,
+      T3: 13,
+      T4: 14,
+      T5: 15,
+      T6: 16,
+      O1: 17,
+      O2: 18
+    };
+
 let LAYOUT = null;
 let OPTIONS = null;
 let SVG_THEME = "dark";
@@ -247,8 +269,15 @@ function drawConnections(svg, connections) {
 
   for (const c of connections) {
 
-    const p1 = POS[c.source];
-    const p2 = POS[c.target];
+    let source = c.source;
+    let target = c.target;
+
+    if (ELECTRODE_ORDER[source] > ELECTRODE_ORDER[target]) {
+        [source, target] = [target, source];
+    }
+
+    const p1 = POS[source];
+    const p2 = POS[target];
 
     if (!p1 || !p2) continue;
 
