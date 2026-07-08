@@ -65,7 +65,7 @@
 
   <div style="padding: 10px 16px; display:flex; gap:10px;">
     <button id="view-head">Head Models</button>
-    <button id="view-coherence">Coherence Plots</button>
+    <button id="view-coherence">Line Plots</button>
   </div>
 </header>
 
@@ -98,7 +98,7 @@
 <!-- COHERENCE TAB -->
 <div id="coherence-view" style="display:none; padding:16px;">
   <div id="coherence-tab" style="padding:16px;">
-    <h2>Coherence Plot</h2>
+    <h2 id="plot-title">Coherence Plot</h2>
 
     <div class="controls">
       <div>
@@ -114,11 +114,6 @@
       <div>
         <label>Control</label>
         <select id="control-subject"></select>
-      </div>
-
-      <div>
-        <label>Band</label>
-        <select id="coherence-band"></select>
       </div>
     </div>
 
@@ -419,10 +414,14 @@ async function loadCoherencePlots() {
     const pre = document.getElementById("pre-subject").value;
     const post = document.getElementById("post-subject").value;
     const control = document.getElementById("control-subject").value;
-    const band = document.getElementById("coherence-band").value;
+    const band = document.getElementById("band").value;
+    const metric = document.getElementById("metric").value;
+
+    document.getElementById("plot-title").textContent =
+        `${metric} Plots`;
 
     const res = await fetch(
-      `/api/coherence_line?pre=${pre}&post=${post}&control=${control}&band=${band}`
+      `/api/coherence_line?pre=${pre}&post=${post}&control=${control}&metric=${metric}&band=${band}`
     );
 
     const data = await res.json();
@@ -431,7 +430,7 @@ async function loadCoherencePlots() {
     drawCoherencePlots(data);
 
   } catch (e) {
-    err.textContent = "Coherence error: " + e.message;
+    err.textContent = "Plotting error: " + e.message;
   }
 }
 
@@ -465,6 +464,10 @@ function drawCoherencePlots(data) {
     wrapper.appendChild(canvas);
     container.appendChild(wrapper);
 
+    const theme = plotTheme();
+
+    canvas.style.background = theme.background;
+
     const chart = new Chart(canvas.getContext("2d"), {
       type: "line",
       data: {
@@ -489,10 +492,29 @@ function drawCoherencePlots(data) {
       },
       options: {
         responsive: true,
+
         scales: {
-          y: { beginAtZero: true }
+            y: {
+                min: metric === "DAI" ? -1 : 0,
+                max: 1,
+                ticks: {
+                    color: theme.text
+                },
+                grid: {
+                    color: theme.grid
+                }
+            },
+
+            x: {
+                ticks: {
+                    color: theme.text
+                },
+                grid: {
+                    color: theme.grid
+                }
+            }
         }
-      }
+    }
     });
 
     coherenceCharts.push(chart);
@@ -505,6 +527,22 @@ function svgTheme() {
     stroke: SVG_THEME === "light" ? "#000" : "#fff",
     dim: SVG_THEME === "light" ? "#ccc" : "#444"
   };
+}
+
+function plotTheme() {
+  if (SVG_THEME === "light") {
+    return {
+      text: "#111",
+      grid: "#ccc",
+      background: "#fff"
+    };
+  } else {
+    return {
+      text: "#eee",
+      grid: "#444",
+      background: "#111"
+    };
+  }
 }
 
 /* ---------------- Init ---------------- */
@@ -537,24 +575,56 @@ async function init() {
     fillSelect(subjectA, OPTIONS.subjects);
     fillSelect(subjectB, OPTIONS.subjects);
 
-    fillSelect(document.getElementById("pre-subject"), OPTIONS.subjects);
-    fillSelect(document.getElementById("post-subject"), OPTIONS.subjects);
-    fillSelect(document.getElementById("control-subject"), OPTIONS.subjects);
-    fillSelect(document.getElementById("coherence-band"), OPTIONS.bands);
+    const plotDefaults = OPTIONS.coherence_plot.defaults;
 
-    metricEl.onchange = refresh;
-    bandEl.onchange = refresh;
+    fillSelect(
+        document.getElementById("pre-subject"),
+        OPTIONS.subjects,
+        plotDefaults.pre_subject
+    );
+
+    fillSelect(
+        document.getElementById("post-subject"),
+        OPTIONS.subjects,
+        plotDefaults.post_subject
+    );
+
+    fillSelect(
+        document.getElementById("control-subject"),
+        OPTIONS.subjects,
+        plotDefaults.control_subject
+    );
+
+
+    metricEl.onchange = () => {
+      refresh();
+      loadCoherencePlots();
+    };
+
+    bandEl.onchange = () => {
+      refresh();
+
+      if (document.getElementById("coherence-view").style.display !== "none") {
+          loadCoherencePlots();
+      }
+    };
+
     subjectA.onchange = refresh;
     subjectB.onchange = refresh;
 
     document.getElementById("pre-subject").onchange = loadCoherencePlots;
     document.getElementById("post-subject").onchange = loadCoherencePlots;
     document.getElementById("control-subject").onchange = loadCoherencePlots;
-    document.getElementById("coherence-band").onchange = loadCoherencePlots;
     document.getElementById("display-mode").onchange = refresh;
+
     document.getElementById("theme-toggle").onchange = (e) => {
-      SVG_THEME = e.target.checked ? "light" : "dark";
-      refresh();
+        SVG_THEME = e.target.checked ? "light" : "dark";
+
+        refresh();
+
+        if (document.getElementById("coherence-view").style.display !== "none") {
+            loadCoherencePlots();
+        }
     };
 
     refresh();

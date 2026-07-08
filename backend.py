@@ -57,6 +57,7 @@ class EEGBackend:
             "metrics": self.metrics(),
             "bands": self.bands(),
             "defaults": self.defaults(),
+            "coherence_plot": self.coherence_plot_config()
         }
 
     # ------------------------------------------------------------------
@@ -179,13 +180,13 @@ class EEGBackend:
         """Static config a front-end needs to build the line-plot controls."""
         cfg = self.config.get("coherence_plot", {})
         return {
-            "title": cfg.get("title", "Frontal-Central Coherence Plots"),
+            "title": cfg.get("title", "Coherence Plots"),
             "defaults": cfg.get("defaults", {}),
             "series": cfg.get("series", {}),
             "groups": [g["name"] for g in cfg.get("groups", [])],
         }
 
-    def coherence_line_plot(self, pre, post, band, control=None):
+    def coherence_line_plot(self, pre, post, metric, band, control=None):
         """Data for the pre/post/control coherence line plot.
 
         Returns one entry per group (e.g. Left / Right Frontal-Central),
@@ -202,9 +203,9 @@ class EEGBackend:
             groups.append({
                 "name": group["name"],
                 "pairs": pairs,
-                "pre": self.data.get_coherence_series(pre, band, pairs),
-                "post": self.data.get_coherence_series(post, band, pairs),
-                "control": self.data.get_coherence_series(control, band, pairs),
+                "pre": self.data.get_metric_series(pre, metric, band, pairs),
+                "post": self.data.get_metric_series(post, metric, band, pairs),
+                "control": self.data.get_metric_series(control, metric, band, pairs)
             })
 
         return {

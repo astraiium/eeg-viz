@@ -93,7 +93,7 @@ class Handler(BaseHTTPRequestHandler):
 
             elif path == "/api/coherence_line":
                 self._send_json(BACKEND.coherence_line_plot(
-                    arg("pre"), arg("post"), arg("band"), arg("control")
+                    arg("pre"), arg("post"), arg("metric"), arg("band"), arg("control")
                 ))
 
             else:

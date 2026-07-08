@@ -66,32 +66,21 @@ class DataManager:
 
         return connections
 
-    def get_coherence_series(self, subject, band, pairs):
-        """Return coherence values for `subject`/`band` aligned to `pairs`.
 
-        Each pair is a string like "C3-F3". The connectivity matrix only
-        stores each pair once, so we try both column orders ("C3-F3" and
-        "F3-C3") and take whichever holds a real (non-NaN) value. Missing
-        pairs come back as None so the caller can leave a gap in the line.
+    def get_metric_series(self, subject, metric, band, pairs):
         """
-        sheet = self.coherence_book[band.lower()]
+        Return metric values for `subject`/`band` aligned to `pairs`.
+        """
+        connections = self.get_connections(subject, metric, band)
 
-        match = sheet[sheet["subject"] == subject]
-        if match.empty:
-            return [None] * len(pairs)
-
-        row = match.iloc[0]
         values = []
 
         for pair in pairs:
             a, b = pair.split(self.pair_separator)
-            value = None
 
-            for col in (pair, b + self.pair_separator + a):
-                if col in sheet.columns and not pd.isna(row[col]):
-                    value = float(row[col])
-                    break
-
-            values.append(value)
+            values.append(
+                connections.get((a, b),
+                    connections.get((b, a)))
+            )
 
         return values
