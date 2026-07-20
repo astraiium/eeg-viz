@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:,">
 <title>EEG Vistool — Web</title>
 
 <style>
@@ -60,6 +61,9 @@
           <input type="checkbox" id="theme-toggle">
           Light Mode
         </label>
+    </div>
+    <div id="colorbar-container" style="padding:10px 25px;">
+      <canvas id="colorbar" width="500" height="60"></canvas>
     </div>
   </div>
 
@@ -297,6 +301,83 @@ function drawConnections(svg, connections) {
   }
 }
 
+function drawColorBar() {
+
+    const canvas = document.getElementById("colorbar");
+    const ctx = canvas.getContext("2d");
+
+    const metric = document.getElementById("metric").value;
+    const mode = document.getElementById("display-mode").value;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0,0,w,h);
+
+    let grad = ctx.createLinearGradient(0,0,w,0);
+
+    if(mode === "difference"){
+
+        grad.addColorStop(0,"#ff0000");
+        grad.addColorStop(0.5,"white");
+        grad.addColorStop(1,"#00ff00");
+
+    }
+    else if(metric==="DAI"){
+
+        grad.addColorStop(0,"blue");
+        grad.addColorStop(0.5,"white");
+        grad.addColorStop(1,"red");
+
+    }
+    else{
+
+        grad.addColorStop(0,"#8000ff");
+        grad.addColorStop(.17,"blue");
+        grad.addColorStop(.33,"cyan");
+        grad.addColorStop(.66,"yellow");
+        grad.addColorStop(.83,"orange");
+        grad.addColorStop(1,"red");
+
+    }
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(20,10,w-40,20);
+
+    ctx.strokeStyle="black";
+    ctx.strokeRect(20,10,w-40,20);
+
+    ctx.fillStyle = SVG_THEME==="light" ? "black":"white";
+    ctx.font="14px sans-serif";
+
+    if(mode==="difference"){
+
+        ctx.fillText("-max",20,50);
+        ctx.fillText("0",w/2-5,50);
+        ctx.fillText("+max",w-55,50);
+
+    }
+    else if(metric==="DAI"){
+
+        ctx.fillText("-1",20,50);
+        ctx.fillText("-0.5",w/4,50);
+        ctx.fillText("0",w/2-5,50);
+        ctx.fillText("0.5",3*w/4,50);
+        ctx.fillText("1",w-15,50);
+
+    }
+    else{
+
+        ctx.fillText("0",20,50);
+        ctx.fillText("0.25",w/4-10,50);
+        ctx.fillText("0.5",w/2-10,50);
+        ctx.fillText("0.75",3*w/4-12,50);
+        ctx.fillText("1",w-15,50);
+
+    }
+
+}
+
 function renderPanel(id, data) {
 
   if (!data) return;
@@ -371,6 +452,7 @@ async function refresh() {
   const band = document.getElementById("band").value;
   const a = document.getElementById("subjectA").value;
   const b = document.getElementById("subjectB").value;
+  drawColorBar();
 
   try {
 
@@ -435,6 +517,20 @@ async function loadCoherencePlots() {
 }
 
 function drawCoherencePlots(data) {
+
+  const metric = document.getElementById("metric").value;
+
+  let yMin, yMax;
+
+  if(metric === "DAI"){
+      yMin = -1;
+      yMax = 1;
+  }
+  else{
+      yMin = 0;
+      yMax = 1;
+  }
+
   coherenceCharts.forEach(c => c.destroy());
   coherenceCharts = [];
 
@@ -495,8 +591,8 @@ function drawCoherencePlots(data) {
 
         scales: {
             y: {
-                min: metric === "DAI" ? -1 : 0,
-                max: 1,
+                min: yMin,
+                max: yMax,
                 ticks: {
                     color: theme.text
                 },
