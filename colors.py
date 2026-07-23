@@ -1,5 +1,12 @@
 import colorsys
+import math
 
+METRIC_RANGES = {
+    "Coherence": (0, 1),
+    "PLV": (0, 1),
+    "DAI": (-1, 1),
+    "Aperiodic": (-0.3, 3)
+}
 
 def _coherence_rgb(value):
     v = max(0.0, min(1.0, float(value)))
@@ -18,6 +25,36 @@ def _dai_rgb(value):
 
     c = int(255 * (1 - (t - 0.5) / 0.5))
     return (255, c, c)
+
+def _aperiodic_rgb(value):
+    """
+    Maps aperiodic exponent to sequential color.
+
+    Low exponent  -> purple
+    High exponent -> red
+    """
+
+    if value is None:
+        return (200, 200, 200)
+
+    min_val, max_val = METRIC_RANGES["Aperiodic"]
+
+    v = (float(value) - min_val) / (max_val - min_val)
+    v = max(0.0, min(1.0, v))
+
+    hue = (1 - v) * 270.0
+
+    r, g, b = colorsys.hsv_to_rgb(
+        (hue % 360) / 360.0,
+        1.0,
+        1.0
+    )
+
+    return (
+        int(r * 255),
+        int(g * 255),
+        int(b * 255)
+    )
 
 
 def _difference_rgb(v):
@@ -39,11 +76,16 @@ def _difference_rgb(v):
 
 
 def value_to_rgb(value, metric):
+
     if value is None:
         return (200, 200, 200)
 
     if metric in ("Coherence", "PLV"):
         return _coherence_rgb(value)
+
+    if metric == "Aperiodic":
+        return _aperiodic_rgb(value)
+
     if metric == "Difference":
         return _difference_rgb(value)
 
@@ -72,3 +114,4 @@ def difference_to_hex(value, max_difference):
     r, g, b = _difference_rgb(normalized)
 
     return "#{:02X}{:02X}{:02X}".format(r, g, b)
+

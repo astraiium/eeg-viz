@@ -195,7 +195,7 @@ function earPath(cx, cy, er, startDeg, endDeg, steps = 24) {
 
 /* ---------------- Head rendering ---------------- */
 
-function buildHead(svg) {
+function buildHead(svg, electrodeValues = null) {
   const r = LAYOUT.radius;
   const theme = svgTheme();
 
@@ -236,14 +236,33 @@ function buildHead(svg) {
   for (const e of LAYOUT.electrodes) {
     const dim = hiddenLobes.has(e.lobe);
 
+    const electrodeColor = electrodeValues?.[e.name]?.color || e.color;
     svg.appendChild(el("circle", {
       cx: e.x,
       cy: e.y,
       r: rad,
-      fill: dim ? "#444" : e.color,
+      fill: dim ? "#444" : electrodeColor,
       stroke: theme.stroke,
       "stroke-width": 1
     }));
+
+    if (electrodeValues && electrodeValues[e.name]) {
+
+        const value = electrodeValues[e.name].value;
+
+        const valueText = el("text", {
+            x: e.x,
+            y: e.y - rad - 8,
+            fill: electrodeColor,
+            "font-size": 11,
+            "text-anchor": "middle",
+            "font-weight": "bold"
+        });
+
+        valueText.textContent = Number(value).toFixed(3);
+
+        svg.appendChild(valueText);
+    }
 
     const t = el("text", {
       x: e.x,
@@ -301,6 +320,26 @@ function drawConnections(svg, connections) {
   }
 }
 
+function drawElectrodes(svg, values) {
+
+    const rad = LAYOUT.electrode_diameter / 2;
+
+    for (const e of LAYOUT.electrodes) {
+
+        if (!(e.name in values))
+            continue;
+
+        svg.appendChild(el("circle", {
+            cx: e.x,
+            cy: e.y,
+            r: rad,
+            fill: values[e.name].color || "red",
+            stroke: svgTheme().stroke,
+            "stroke-width": 1
+        }));
+    }
+}
+
 function drawColorBar() {
 
     const canvas = document.getElementById("colorbar");
@@ -330,7 +369,7 @@ function drawColorBar() {
         grad.addColorStop(1,"red");
 
     }
-    else{
+    else if (metric==="Aperiodic"){
 
         grad.addColorStop(0,"#8000ff");
         grad.addColorStop(.17,"blue");
@@ -366,6 +405,15 @@ function drawColorBar() {
         ctx.fillText("1",w-15,50);
 
     }
+    else if(metric==="Aperiodic"){
+
+        ctx.fillText("-0.3",20,50);
+        ctx.fillText("0.5",w/4-10,50);
+        ctx.fillText("1.5",w/2-10,50);
+        ctx.fillText("2.25",3*w/4-12,50);
+        ctx.fillText("3",w-15,50);
+
+    }
     else{
 
         ctx.fillText("0",20,50);
@@ -392,8 +440,16 @@ function renderPanel(id, data) {
     style: `background: ${theme.bg};`
   });
 
-  drawConnections(svg, data.connections || []);
-  buildHead(svg);
+    const metric = document.getElementById("metric").value;
+
+    if (metric === "Aperiodic") {
+      buildHead(svg, data.values || {});
+      drawElectrodes(svg, data.values || {});
+    } 
+    else {
+      drawConnections(svg, data.connections || []);
+      buildHead(svg, null);
+    }
 
   const container = document.getElementById(id);
   container.innerHTML = "";

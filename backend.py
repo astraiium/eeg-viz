@@ -130,9 +130,35 @@ class EEGBackend:
             "band": band,
             "connections": connections,
         }
+        
+    def electrode_values(self, subject, metric):
+        """Single-electrode metrics such as aperiodic exponent."""
+
+        raw = self.data.get_electrode_values(subject, metric)
+
+        values = {
+            electrode: {
+                "value": value,
+                "color": value_to_hex(value, metric)
+            }
+            for electrode, value in raw.items()
+        }
+
+        return {
+            "subject": subject,
+            "metric": metric,
+            "values": values
+        }
 
     def compare(self, subject_a, subject_b, metric, band):
-        """Side-by-side payload for two patients under the same metric/band."""
+
+        if metric == "Aperiodic":
+            return {
+                "metric": metric,
+                "left": self.electrode_values(subject_a, metric),
+                "right": self.electrode_values(subject_b, metric),
+            }
+
         return {
             "metric": metric,
             "band": band,

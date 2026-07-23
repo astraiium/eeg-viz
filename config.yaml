@@ -22,7 +22,7 @@ paths:
   coherence_file: "coherence.xlsx"
   dai_file: "dai.xlsx"
   plv_file: "plv.xlsx"
-  aperiodic_file: "aperiodic_slope.xlsx"
+  aperiodic_file: "aperiodic.xlsx"
 
 data:
   # Columns present in every sheet that are metadata, not electrode

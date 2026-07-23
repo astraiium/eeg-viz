@@ -1,5 +1,5 @@
 import pandas as pd
-
+import os
 
 class DataManager:
 
@@ -11,23 +11,25 @@ class DataManager:
         self.meta_columns = data_cfg.get("meta_columns", ["subject", "group"])
         self.pair_separator = data_cfg.get("pair_separator", "-")
 
+        base = paths.get("data_dir", "")
+
         self.coherence_book = pd.read_excel(
-            paths["coherence_file"],
+            os.path.join(base, paths["coherence_file"]),
             sheet_name=None
         )
-        
+
         self.plv_book = pd.read_excel(
-            paths["plv_file"],
+            os.path.join(base, paths["plv_file"]),
             sheet_name=None
         )
 
         self.dai_book = pd.read_excel(
-            paths["dai_file"],
+            os.path.join(base, paths["dai_file"]),
             sheet_name=None
         )
-        
+
         self.aperiodic_book = pd.read_excel(
-            paths["aperiodic_file"],
+            os.path.join(base, paths["aperiodic_file"]),
             sheet_name=None
         )
 
@@ -74,6 +76,49 @@ class DataManager:
             connections[(ch1, ch2)] = float(value)
 
         return connections
+    
+    def get_electrode_values(self, subject, metric):
+            """
+            Get single-electrode metric values (e.g. Aperiodic exponent).
+
+            Returns:
+                {
+                    "C3": 1.52,
+                    "F3": 1.84,
+                    ...
+                }
+            """
+
+            if metric == "Aperiodic":
+                sheet = self.aperiodic_book[
+                    list(self.aperiodic_book.keys())[0]
+                ]
+            else:
+                return {}
+
+            row = sheet[sheet["subject"] == subject]
+
+            if row.empty:
+                return {}
+
+            row = row.iloc[0]
+
+            values = {}
+
+            for col in sheet.columns:
+
+                # Skip metadata columns
+                if col in self.meta_columns:
+                    continue
+
+                value = row[col]
+
+                if pd.isna(value):
+                    continue
+
+                values[col] = float(value)
+
+            return values
 
 
     def get_metric_series(self, subject, metric, band, pairs):
