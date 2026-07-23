@@ -379,6 +379,16 @@ function drawColorBar() {
         grad.addColorStop(1,"red");
 
     }
+    else {
+
+        grad.addColorStop(0,"#8000ff");
+        grad.addColorStop(.17,"blue");
+        grad.addColorStop(.33,"cyan");
+        grad.addColorStop(.66,"yellow");
+        grad.addColorStop(.83,"orange");
+        grad.addColorStop(1,"red");
+
+    }
 
     ctx.fillStyle = grad;
     ctx.fillRect(20,10,w-40,20);
