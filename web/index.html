@@ -738,9 +738,11 @@ function showView(mode) {
   if (mode === "head") {
     head.style.display = "block";
     coh.style.display = "none";
+    refresh();
   } else {
     head.style.display = "none";
     coh.style.display = "block";
+    loadCoherencePlots();
   }
 }
 
