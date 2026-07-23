@@ -25,6 +25,11 @@ class DataManager:
             paths["dai_file"],
             sheet_name=None
         )
+        
+        self.aperiodic_book = pd.read_excel(
+            paths["aperiodic_file"],
+            sheet_name=None
+        )
 
     def get_subjects(self):
 
@@ -40,6 +45,10 @@ class DataManager:
             sheet = self.plv_book[band.lower()]
         elif metric == "DAI":
             sheet = self.dai_book[band.lower()]
+        elif metric == "Aperiodic":
+            sheet = self.aperiodic_book[
+                list(self.aperiodic_book.keys())[0]
+            ]
 
         row = sheet[sheet["subject"] == subject]
 

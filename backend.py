@@ -37,7 +37,7 @@ class EEGBackend:
         return self.data.get_subjects()
 
     def metrics(self):
-        return self.config.get("metrics", {}).get("options", ["Coherence", "PLV", "DAI"])
+        return self.config.get("metrics", {}).get("options", ["Coherence", "PLV", "DAI", "Aperiodic"])
 
     def bands(self):
         return self.config.get("bands", {}).get(

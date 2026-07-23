@@ -22,6 +22,7 @@ paths:
   coherence_file: "coherence.xlsx"
   dai_file: "dai.xlsx"
   plv_file: "plv.xlsx"
+  aperiodic_file: "aperiodic_slope.xlsx"
 
 data:
   # Columns present in every sheet that are metadata, not electrode
@@ -39,7 +40,7 @@ window:
 
 # Dropdown choices. "default" is the item selected on startup.
 metrics:
-  options: ["Coherence", "PLV", "DAI"]
+  options: ["Coherence", "PLV", "DAI", "Aperiodic"]
   default: "Coherence"
 
 bands:

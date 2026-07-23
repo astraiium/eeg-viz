@@ -693,8 +693,21 @@ async function init() {
 
 
     metricEl.onchange = () => {
-      refresh();
-      loadCoherencePlots();
+
+        const metric = metricEl.value;
+
+        if (metric === "Aperiodic Slope") {
+            bandEl.disabled = true;
+        }
+        else {
+            bandEl.disabled = false;
+        }
+
+        refresh();
+
+        if (document.getElementById("coherence-view").style.display !== "none") {
+            loadCoherencePlots();
+        }
     };
 
     bandEl.onchange = () => {
