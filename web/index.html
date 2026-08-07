@@ -93,6 +93,19 @@
           Light Mode
         </label>
     </div>
+    <div>
+      <label>
+        Threshold:
+        <span id="threshold-value">0.00</span>
+      </label><br>
+      <input
+        id="threshold-slider"
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        value="0.20">
+    </div>
     <div id="colorbar-container" style="padding:10px 25px;">
       <canvas id="colorbar" width="500" height="60"></canvas>
     </div>
@@ -316,13 +329,27 @@ function buildHead(svg, electrodeValues = null) {
 
 /* ---------------- Connections ---------------- */
 
-function drawConnections(svg, connections) {
+function drawConnections(svg, connections, threshold) {
+
+  const metricEl = document.getElementById("metric");
+  const modeEl = document.getElementById("display-mode");
+
+  console.log(metricEl, modeEl);
+
+  const metric = metricEl?.value ?? "";
+  const mode = modeEl?.value ?? "normal";
 
   if (!connections) return;
 
   const curv = LAYOUT.connection_curvature;
 
   for (const c of connections) {
+
+    if (metric === "DAI" && Math.abs(c.value) < threshold)
+      continue;
+
+    if (mode === "difference" && Math.abs(c.value) < threshold)
+      continue;
 
     let source = c.source;
     let target = c.target;
@@ -494,7 +521,7 @@ function renderPanel(id, data) {
       drawElectrodes(svg, data.values || {});
     } 
     else {
-      drawConnections(svg, data.connections || []);
+      drawConnections(svg, data.connections || [], Number(thresholdSlider.value));
       buildHead(svg, null);
     }
 
@@ -781,6 +808,9 @@ const bandEl = document.getElementById("band");
 const subjectA = document.getElementById("subjectA");
 const subjectB = document.getElementById("subjectB");
 
+const thresholdSlider = document.getElementById("threshold-slider");
+const thresholdValue = document.getElementById("threshold-value");
+
 async function init() {
   try {
     OPTIONS = await (await fetch("/api/options")).json();
@@ -848,6 +878,19 @@ async function init() {
           loadCoherencePlots();
       }
     };
+
+    thresholdSlider.oninput = () => {
+      thresholdValue.textContent =
+          Number(thresholdSlider.value).toFixed(2);
+
+      refresh();
+
+      if (document.getElementById("coherence-view").style.display !== "none")
+          loadCoherencePlots();
+    };
+
+    thresholdValue.textContent =
+      Number(thresholdSlider.value).toFixed(2);
 
     subjectA.onchange = refresh;
     subjectB.onchange = refresh;
