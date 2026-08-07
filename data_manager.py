@@ -12,6 +12,10 @@ class DataManager:
         self.pair_separator = data_cfg.get("pair_separator", "-")
 
         base = paths.get("data_dir", "")
+        
+        self.info_book = pd.read_excel(
+            os.path.join(base, paths["subject_info_file"]),
+        )
 
         self.coherence_book = pd.read_excel(
             os.path.join(base, paths["coherence_file"]),
@@ -35,9 +39,18 @@ class DataManager:
 
     def get_subjects(self):
 
-        alpha_sheet = self.coherence_book["alpha"]
-        print(alpha_sheet["subject"].tolist())
-        return alpha_sheet["subject"].tolist()
+        alpha_sheet = self.coherence_book["gamma"]
+
+        subjects = (
+            alpha_sheet["subject"]
+            .dropna()
+            .astype(str)
+            .tolist()
+        )
+
+        print(subjects)
+
+        return subjects
 
     def get_connections(self, subject, metric, band):
 
@@ -48,11 +61,11 @@ class DataManager:
         elif metric == "DAI":
             sheet = self.dai_book[band.lower()]
         elif metric == "Aperiodic":
-            sheet = self.aperiodic_book[
-                list(self.aperiodic_book.keys())[0]
-            ]
+            sheet = self.aperiodic_book[band.lower()]
 
-        row = sheet[sheet["subject"] == subject]
+        # remove empty subject rows
+        sheet = sheet.dropna(subset=["subject"])
+        row = sheet[sheet["subject"].astype(str) == str(subject)]
 
         if row.empty:
             return {}
@@ -62,16 +75,15 @@ class DataManager:
         connections = {}
 
         for col in sheet.columns:
-
             if col in self.meta_columns:
                 continue
-
-            ch1, ch2 = col.split(self.pair_separator)
 
             value = row[col]
 
             if pd.isna(value):
                 continue
+
+            ch1, ch2 = col.split(self.pair_separator)
 
             connections[(ch1, ch2)] = float(value)
 
@@ -138,3 +150,43 @@ class DataManager:
             )
 
         return values
+    
+    def get_electrode_series(self, subject, electrodes):
+        df = self.aperiodic_book["alpha"]
+
+        row = df[df["subject"] == subject]
+
+        if row.empty:
+            return [None for _ in electrodes]
+
+        row = row.iloc[0]
+
+        values = []
+
+        for e in electrodes:
+            values.append(
+                row.get(e, None)
+            )
+
+        return values
+    
+    def get_subject_info(self, subject):
+        info_sheet = self.info_book
+
+        row = info_sheet[info_sheet["Subject"] == subject]
+
+        if row.empty:
+            return {}
+
+        row = row.iloc[0]
+
+        info = {}
+
+        for col in info_sheet.columns:
+            value = row[col]
+
+            # skip empty cells
+            if pd.notna(value) and str(value).strip() != "":
+                info[col] = value
+
+        return info

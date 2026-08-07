@@ -155,18 +155,62 @@ class EEGBackend:
         if metric == "Aperiodic":
             return {
                 "metric": metric,
-                "left": self.electrode_values(subject_a, metric),
-                "right": self.electrode_values(subject_b, metric),
+                "left": {
+                    **self.electrode_values(subject_a, metric),
+                    "info": self.data.get_subject_info(subject_a)
+                },
+                "right": {
+                    **self.electrode_values(subject_b, metric),
+                    "info": self.data.get_subject_info(subject_b)
+                }
             }
 
         return {
             "metric": metric,
             "band": band,
-            "left": self.connectivity(subject_a, metric, band),
-            "right": self.connectivity(subject_b, metric, band),
+            "left": {
+                **self.connectivity(subject_a, metric, band),
+                "info": self.data.get_subject_info(subject_a)
+            },
+
+            "right": {
+                **self.connectivity(subject_b, metric, band),
+                "info": self.data.get_subject_info(subject_b)
+            }
         }
         
     def difference(self, subject_a, subject_b, metric, band):
+        
+        if metric == "Aperiodic":
+
+            raw_a = self.data.get_electrode_values(subject_a, metric)
+            raw_b = self.data.get_electrode_values(subject_b, metric)
+
+            electrodes = set(raw_a.keys()) | set(raw_b.keys())
+
+            diffs = {
+                e: raw_b.get(e, 0) - raw_a.get(e, 0)
+                for e in electrodes
+            }
+
+            max_diff = max(abs(v) for v in diffs.values()) if diffs else 1
+
+            values = {
+                e: {
+                    "value": diff,
+                    "color": difference_to_hex(diff, max_diff)
+                }
+                for e, diff in diffs.items()
+            }
+
+            return {
+                "mode": "difference",
+                "metric": metric,
+                "subject_a": subject_a,
+                "subject_b": subject_b,
+                "values": values
+            }
+        
         raw_a = self.data.get_connections(subject_a, metric, band)
         raw_b = self.data.get_connections(subject_b, metric, band)
 
@@ -213,6 +257,12 @@ class EEGBackend:
         }
 
     def coherence_line_plot(self, pre, post, metric, band, control=None):
+        if metric == "Aperiodic":
+            return self.aperiodic_line_plot(
+                pre,
+                post,
+                control
+            )
         """Data for the pre/post/control coherence line plot.
 
         Returns one entry per group (e.g. Left / Right Frontal-Central),
@@ -241,3 +291,42 @@ class EEGBackend:
             "series": cfg.get("series", {}),
             "groups": groups,
         }
+        
+    def aperiodic_line_plot(self, pre, post, control=None):
+        cfg = self.config.get("lobes", {})
+
+        groups = []
+
+        for lobe, info in cfg.items():
+
+            electrodes = info["electrodes"]
+
+            groups.append({
+                "name": lobe.capitalize(),
+                "pairs": electrodes,
+                "pre": self.data.get_electrode_series(
+                    pre,
+                    electrodes
+                ),
+                "post": self.data.get_electrode_series(
+                    post,
+                    electrodes
+                ),
+                "control": self.data.get_electrode_series(
+                    control,
+                    electrodes
+                ) if control else []
+            })
+
+        return {
+            "title": "Aperiodic Slope by Region",
+            "band": None,
+            "subjects": {
+                "pre": pre,
+                "post": post,
+                "control": control
+            },
+            "series": self.config.get("coherence_plot", {}).get("series", {}),
+            "groups": groups
+        }
+

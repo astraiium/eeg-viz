@@ -92,15 +92,39 @@ class Handler(BaseHTTPRequestHandler):
                 ))
 
             elif path == "/api/coherence_line":
-                self._send_json(BACKEND.coherence_line_plot(
-                    arg("pre"), arg("post"), arg("metric"), arg("band"), arg("control")
-                ))
+                params = parse_qs(parsed.query)
+                pre = params["pre"][0]
+                post = params["post"][0]
+                control = params["control"][0]
+                metric = params["metric"][0]
+                band = params.get("band", [None])[0]
+
+                if metric == "Aperiodic":
+                    result = BACKEND.aperiodic_line_plot(
+                        pre,
+                        post,
+                        control
+                    )
+                else:
+                    result = BACKEND.coherence_line_plot(
+                        pre,
+                        post,
+                        metric,
+                        band,
+                        control
+                    )
+                self._send_json(result)
 
             else:
                 self.send_error(404, "Not found")
 
-        except Exception as exc:  # surface backend errors as JSON
-            self._send_json({"error": str(exc)}, status=500)
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            raise
+
+        # except Exception as exc:  # surface backend errors as JSON
+        #      self._send_json({"error": str(exc)}, status=500)
 
     def log_message(self, fmt, *args):
         # Quieter logging: one concise line per request.

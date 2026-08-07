@@ -17,6 +17,8 @@ paths:
   # coherence / DAI connectivity view.
   raw_eeg_dir: "raw"
 
+  subject_info_file: "patientinfo.xlsx"
+
   # Connectivity workbooks used by the visualization. Each is an
   # Excel file with one sheet per frequency band (alpha, beta, ...).
   coherence_file: "coherence.xlsx"
@@ -42,6 +44,7 @@ window:
 metrics:
   options: ["Coherence", "PLV", "DAI", "Aperiodic"]
   default: "Coherence"
+  nodal: ["Aperiodic"]
 
 bands:
   options: ["Alpha", "Beta", "Delta", "Theta", "Gamma"]
@@ -129,7 +132,7 @@ coherence_plot:
   defaults:
     pre_subject: "AA"
     post_subject: "AA-post"
-    control_subject: "CONTROL_AVG"
+    control_subject: "Average: Control"
     band: "Delta"
 
   # One subplot per group, drawn left-to-right.
@@ -220,3 +223,46 @@ coherence_plot:
     control:
       label: "Non-ASD Control"
       color: "#999999"      # gray
+
+nodal_plot:
+
+  defaults:
+    pre_subject: "AA"
+    post_subject: "AA-post"
+    control_subject: "Average: Control"
+
+  groups:
+
+  - name: "Frontal"
+    electrodes:
+      - FP1
+      - FP2
+      - F3
+      - F4
+      - F7
+      - F8
+      - FZ
+
+  - name: "Central"
+    electrodes:
+      - C3
+      - C4
+      - CZ
+
+  - name: "Temporal"
+    electrodes:
+      - T3
+      - T4
+      - T5
+      - T6
+
+  - name: "Parietal"
+    electrodes:
+      - P3
+      - P4
+      - PZ
+
+  - name: "Occipital"
+    electrodes:
+      - O1
+      - O2
