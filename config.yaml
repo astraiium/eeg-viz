@@ -132,7 +132,7 @@ coherence_plot:
   defaults:
     pre_subject: "AA"
     post_subject: "AA-post"
-    control_subject: "Average: Control"
+    control_subject: "Average: Typically Developing"
     band: "Delta"
 
   # One subplot per group, drawn left-to-right.
@@ -229,7 +229,7 @@ nodal_plot:
   defaults:
     pre_subject: "AA"
     post_subject: "AA-post"
-    control_subject: "Average: Control"
+    control_subject: "Average: Typically Developing"
 
   groups:
 
